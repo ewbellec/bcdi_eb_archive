@@ -29,7 +29,7 @@ def get_command_spec(scan_no, specfile):
 
 class Scan_spec:
     def __init__(self, specfile, scan_nb,
-                 path_imgs=None, search_detector=True,
+                 path_imgs=None, search_img_first_file=True, search_detector=True,
                  verbose=True):
         """
         filename = path to hdf5 file (dataset level)
@@ -46,8 +46,10 @@ class Scan_spec:
         self.getCommand()
         self.getSampleName()
         
-        self.getFirstImageFile()
-        self.detector = self.img_first_file.split('_')[-2]
+        if search_img_first_file:
+            self.getFirstImageFile()
+            if search_detector:
+                self.detector = self.img_first_file.split('_')[-2]
             
 
         if verbose:
@@ -282,24 +284,94 @@ class DmeshScan_spec(Scan_spec):
     
     
 ##################################################################################################################################
+#####################################           SXDM scan          #######################################################
+##################################################################################################################################
+
+
+class SXDM_Scan_spec(Scan_spec):
+    def __init__(self, filename, scan_nb, path_imgs=None, verbose=True):
+        super().__init__(filename, scan_nb, path_imgs=path_imgs, verbose=verbose, search_img_first_file=False)
+
+        self.getSXDMShape()
+        self.getSXDMMotorPosition()
+        
+        
+    def getSXDMShape(self):
+        self.sxdm_shape = (int(self.command.split()[-2]), int(self.command.split()[6]) )
+        return
+    
+    def getSXDMMotorPosition(self):
+        '''
+        Not great. I do that through the command
+        '''
+        self.motor1_name = self.command.split()[3]
+        self.motor2_name = self.command.split()[7]
+        
+        motor1_start = float(self.command.split()[4])
+        motor1_end = float(self.command.split()[5])
+        motor1 = np.linspace(motor1_start, motor1_end, self.sxdm_shape[0])
+        
+        motor2_start = float(self.command.split()[8])
+        motor2_end = float(self.command.split()[9])
+        motor2 = np.linspace(motor2_start, motor2_end, self.sxdm_shape[1])
+        
+        motor1, motor2 = np.meshgrid(motor1, motor2, indexing='ij')
+        self.motor1 = motor1
+        self.motor2 = motor2
+        return
+
+    def getEDFFile(self):
+        for line in self.spec[self.scan_string].scan_header:
+            if 'imageFile' in line:
+                break
+
+        if self.path_imgs is None:
+            self.path_imgs = line.split('dir[')[1].split(']')[0]
+        prefix = line.split('prefix[')[1].split(']')[0]
+        idxFmt = line.split('idxFmt[')[1].split(']')[0]
+        nextNr = int(line.split('nextNr[')[1].split(']')[0])
+        suffix = line.split('suffix[')[1].split(']')[0]
+
+        self.edf_file = f'{self.path_imgs}{prefix}{nextNr:05d}{suffix}'
+        return
+
+    def getImages(self):
+        self.getEDFFile()
+        edf = fabio.open(self.edf_file)
+        for n in range(edf.nframes):
+            img = edf.getframe(n).data
+
+            if n == 0:
+                data = np.zeros((edf.nframes,)+img.shape)
+
+            data[n] += img
+        
+        data = np.reshape(data, self.sxdm_shape + data.shape[-2:])
+        
+        if self.verbose:
+            print("data.shape", data.shape)
+        return data
+    
+    
+##################################################################################################################################
 #################################           General open scan function          ##################################################
 ##################################################################################################################################
     
     
-def openScan(filename, scan_nb, verbose=False):
+def openScan(filename, scan_nb, verbose=False, path_imgs=None):
     command = get_command_spec(scan_nb, filename)
 
-    if "scan" in command and "lookupscan" not in command and "loopscan" not in command:
-        return StandardScan_spec(filename, scan_nb, verbose=verbose)
+    if "scan" in command and "lookupscan" not in command and "loopscan" not in command and "_pscando" not in command:
+        return StandardScan_spec(filename, scan_nb, verbose=verbose, path_imgs=path_imgs)
 
 #     if "lookupscan" in command:
 #         return LookupScan(filename, scan_nb, verbose=verbose)
 
     if "mesh" in command:
-        return DmeshScan_spec(filename, scan_nb, verbose=verbose)
+        return DmeshScan_spec(filename, scan_nb, verbose=verbose, path_imgs=path_imgs)
 
-#     if "sxdm" in command or "kmap" in command:
-#         return SXDM_Scan(filename, scan_nb, verbose=verbose)
+    if "_pscando" in command:
+        return SXDM_Scan_spec(filename, scan_nb, verbose=verbose, path_imgs=path_imgs)
 
 #     if "ct" in command:
 #         return Scan_ct(filename, scan_nb, verbose=verbose)

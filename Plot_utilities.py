@@ -219,7 +219,7 @@ def plot_2D_slices_middle_one_array3D(array,
                                  fig_title = None, 
                                       xlabel=['nm','nm','nm'], ylabel=[None,None,None],
                                  alpha=1,
-                                 vmin=None,vmax=None,
+                                 vmin=None,vmax=None, aspect=None,
                                  symmetric_colorscale=False):
     
     if symmetric_colorscale:
@@ -252,11 +252,11 @@ def plot_2D_slices_middle_one_array3D(array,
         if hasattr(alpha, "__len__"):
             alpha_plot = np.copy(alpha[tuple(s)])
             # Need to make the plot twice to avoid a matplotlib bug
-            im.append(ax[n].imshow(arr, cmap=cmap, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm))
+            im.append(ax[n].imshow(arr, cmap=cmap, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm,aspect=aspect))
             ax[n].cla()
-            ax[n].imshow(arr, cmap=cmap, alpha=alpha_plot, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm)
+            ax[n].imshow(arr, cmap=cmap, alpha=alpha_plot, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm,aspect=aspect)
         else:
-            im.append(ax[n].imshow(arr, cmap=cmap, alpha=alpha, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm))
+            im.append(ax[n].imshow(arr, cmap=cmap, alpha=alpha, vmin=vmin,vmax=vmax, extent=extent[n], norm=norm,aspect=aspect))
     
 
     if add_colorbar:
@@ -914,10 +914,16 @@ def schematic_Bragg_planes_figure(displacement, qcen, voxel_sizes,
                                   dislo_threshold = None,
                                   close_roi=False,
                                   fig=None, ax=None, fw=6, fig_title=None):
+    
     angle_bragg_last_axis = np.rad2deg(np.arccos(np.dot(qcen, [0,0,1])/ np.linalg.norm(qcen)))
-    if angle_bragg_last_axis > 1.:
-        raise ValueError('qcen is not along the last axis ! My function is not ready for that.')
+    
+    if angle_bragg_last_axis > 10.:
+        raise ValueError('qcen is really not along the last axis ! My function is not ready for that.')
         return
+    elif angle_bragg_last_axis > 1.:
+        print('Careful, this is schematic since the Bragg wavevector is not perfectly along the vertical')
+        print(f'The angle between the Bragg and the vertical is of : {round(angle_bragg_last_axis,2)} degrees')
+
     
     if axis==2 :
         raise ValueError('axis should be 0 or 1!')
@@ -985,6 +991,7 @@ def schematic_Bragg_planes_figure(displacement, qcen, voxel_sizes,
     ax.set_aspect('equal', 'box')
     
     return
+
 
 def final_figure_schematic_Bragg_planes(displacement, qcen, voxel_sizes,
                                   strain=None,

@@ -34,7 +34,7 @@ def create_Q_array(scan,
                    det_calib=None,
                    energy=None,
                    switch_x_y_direct_beam_position=False,
-                   chi=0, eta=None, phi=None,
+                   chi=0, eta=None, phi=None, delta=None, nu=None,
                    cxi_convention=False,
                    verbose=False):
     
@@ -60,16 +60,17 @@ def create_Q_array(scan,
         eta = scan.getMotorPosition('eta')
     if phi is None:
         phi = scan.getMotorPosition('phi')
-        
-    if 'spec' in str(scan.__class__) or scan.data_type=='PETRA':
-        delta = scan.getMotorPosition('del')
-    else:
-        delta = scan.getMotorPosition('delta')
-        
-    if scan.data_type=='PETRA':
-        nu = -scan.getMotorPosition('gam')
-    else:
-        nu = scan.getMotorPosition('nu')
+    if delta is None:
+        if 'spec' in str(scan.__class__) or scan.data_type=='PETRA':
+            delta = scan.getMotorPosition('del')
+        else:
+            delta = scan.getMotorPosition('delta')
+       
+    if nu is None:
+        if scan.data_type=='PETRA':
+            nu = -scan.getMotorPosition('gam')
+        else:
+            nu = scan.getMotorPosition('nu')
         
     if energy is None:
         energy = scan.getEnergy()
@@ -84,7 +85,11 @@ def create_Q_array(scan,
     # convention for coordinate system: x downstream; z upwards; y to the "outside" (righthanded)
     hxrd = xu.HXRD([1,0,0],[0,0,1], en=energy, qconv=qconv)
 
-    hxrd.Ang2Q.init_area('z-', 'y+', 
+    if scan.detector == 'CITIUS':
+        vertical_orientation = 'z+'
+    else:
+        vertical_orientation = 'z-'
+    hxrd.Ang2Q.init_area(vertical_orientation, 'y+', 
                      cch1=beam_center_y-roi[2], cch2=beam_center_x-roi[4],
                      Nch1=roi[3]-roi[2], Nch2=roi[5]-roi[4],
                      pwidth1=det_calib['y_pixel_size'], pwidth2=det_calib['x_pixel_size'], distance=det_calib['distance'],
@@ -108,7 +113,6 @@ def create_Q_array(scan,
             print("\x1b[31m beam_center_x and beam_center_y were switched when loading the detector calibration parameters ! \x1b[0m")
             print('\n')
             
-        phi = scan.getMotorPosition('phi')
         print('phi : {}'.format(phi))
         print('eta : {}'.format(eta))
         print('chi : {}'.format(chi))
@@ -166,8 +170,8 @@ def Q_space_transformation(data,
         qx, qy, qz = np.meshgrid(qx,qy,qz, indexing='ij')
     
     if plot :
-        plot_3D_projections(data, fig_title='original data')
-        plot_3D_projections(data_q_space, fig_title='orthogonalized data')
+        plot_3D_projections(data, fig_title='original data', colorbar=True)
+        plot_3D_projections(data_q_space, fig_title='orthogonalized data', colorbar=True)
     
     if mask is not None:
         return data_q_space, mask, qx, qy, qz
@@ -418,6 +422,18 @@ def save_preprocessed_data(scan, data, qx,qy,qz,
         ortho_string = ''
     
     save_name = path_save + 'dataset_{}_scan_{}{}{}'.format(dataset_name, scan_nb,ortho_string, savename_add_string)
+    
+    # overwrite_safety
+    if os.path.exists(save_name+'.npz'):
+        overwrite = input(f'{save_name}.npz already exist ! This is an overwriting safety.'
+                         + '\ndo you want to overwrite the file (y/n)' )
+        if overwrite=='y':
+            print('overwriting the file')
+            pass
+        else:
+            print('saving stopped to avoid overwriting the file.')
+            return
+    
     print('preprocessed data saved in : {}.npz'.format(save_name))
 
     if compress:
@@ -431,8 +447,8 @@ def save_preprocessed_data(scan, data, qx,qy,qz,
              scan_nb=scan_nb, sample=scan.sample, h5file=scan.h5file.split('/')[-1][:-3], 
              savename_add_string=savename_add_string,
              **additional_dict) 
-    if verbose:
-        print('data saved in : ',save_name)
+#     if verbose:
+#         print('data saved in : ',save_name)
     return
 
 ###########################################################################################################################################
@@ -508,6 +524,8 @@ def correct_flatfield(data, roi,
             flatfield = np.load(flatfield_file)['flatfield']
         except:
             flatfield = np.load(flatfield_file)['arr_0']
+    elif flatfield_file.split('.')[-1] == 'npy':
+        flatfield = np.load(flatfield_file)
     else:
         raise ValueError('flatfield problem')
     flatfield = flatfield[roi[2]:roi[3], roi[4]:roi[5]]
@@ -522,8 +540,8 @@ def correct_flatfield(data, roi,
         plt.colorbar()
         plt.title('log flatfield (in ROI)', fontsize=20)
         
-        plot_3D_projections(data)
-        plot_3D_projections(data_corrected)
+        plot_3D_projections(data, fig_title='before flatfield correction')
+        plot_3D_projections(data_corrected, fig_title='After flatfield correction')
         
     return data_corrected
 
@@ -597,9 +615,10 @@ def oversampling_from_diffraction(data,
 def load_mask(scan,
               data, roi=None,
               plot=False):
-    if scan.mask is not None: # PETRA data
-        mask = np.zeros(data.shape)
-        mask += scan.mask[None,:,:]
+    if hasattr(scan, 'mask'):
+        if scan.mask is not None: # PETRA data
+            mask = np.zeros(data.shape)
+            mask += scan.mask[None,:,:]
     
     else:
         path_mask = '/data/id01/inhouse/bellec/software/sharedipynb/gitlab/bcdi_eb/saved_masks/'

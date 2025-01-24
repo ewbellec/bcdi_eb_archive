@@ -115,6 +115,7 @@ def default_cdi_parameters():
     params['support_smooth_width'] = (2,1,600)
     params['post_expand'] = (1,-2,1)
     params['support_update_method'] = 'rms'
+    params['update_border_n'] = 0
 
     params['plot_result'] = True
     params['return_cdi'] = False
@@ -204,7 +205,8 @@ def CDI_one_reconstruction(data, params,
 #                 force_shrink=False,method='max', post_expand=None)
     sup = SupportUpdate(threshold_relative=support_threshold_relative, smooth_width=params['support_smooth_width'], 
                 force_shrink=False, post_expand=params['post_expand'], 
-                       method=params['support_update_method'])
+                       method=params['support_update_method'],
+                       update_border_n = params['update_border_n'])
 
     if params['show_cdi'] is not None:
         plt.figure()
@@ -290,9 +292,17 @@ def save_reconstruction_best_recon_algo(file_dict, obj, llk, n_reconstruction):
     Not an important function> You could do that in another way if you want.
     '''
     
-    path_save = 'Reconstructions_BestReconAlgo/{}_h5file_{}_scan{}{}/'.format(file_dict['sample'],
-                                                                           file_dict['h5file'], file_dict['scan_nb'],
-                                                                           file_dict['savename_add_string'])
+#     path_save = 'Reconstructions_BestReconAlgo/{}_h5file_{}_scan{}{}/'.format(file_dict['sample'],
+#                                                                            file_dict['h5file'], file_dict['scan_nb'],
+#                                                                            file_dict['savename_add_string'])
+
+    if file_dict['orthogonalization']:
+        ortho_string = '_ortho'
+    else:
+        ortho_string = ''
+        
+    path_save = 'Reconstructions_BestReconAlgo/{}_scan{}{}{}/'.format(file_dict['h5file'], file_dict['scan_nb'],ortho_string,
+                                                                       file_dict['savename_add_string'])
 
     check_path_create('Reconstructions_BestReconAlgo')
     check_path_create(path_save)
@@ -310,8 +320,13 @@ def make_several_reconstructions(data, params, file_dict, Nb_reconstruction,
                                 dont_erase_previous_recon=True):
     
     if dont_erase_previous_recon:
-        path_save = 'Reconstructions_BestReconAlgo/{}_scan{}{}/'.format(file_dict['h5file'], file_dict['scan_nb'],
-                                                                               file_dict['savename_add_string'])
+        if file_dict['orthogonalization']:
+            ortho_string = '_ortho'
+        else:
+            ortho_string = ''
+        
+        path_save = 'Reconstructions_BestReconAlgo/{}_scan{}{}{}/'.format(file_dict['h5file'], file_dict['scan_nb'],ortho_string,
+                                                                           file_dict['savename_add_string'])
         if os.path.exists(path_save):
             files = get_npz_files(path_save)
             if len(files) != 0:
@@ -326,13 +341,14 @@ def make_several_reconstructions(data, params, file_dict, Nb_reconstruction,
         
     print(last_recon_nb)
     for n_reconstruction in range(Nb_reconstruction):
-        plt.figure()
-        plt.title('Reconstruction {}'.format(n_reconstruction), fontsize=20)
+#         plt.figure()
+#         plt.title('Reconstruction {}'.format(n_reconstruction), fontsize=20)
         while(1):
             try :
                 obj, llk, support, return_dict = CDI_one_reconstruction(data, params)
                 
                 save_reconstruction_best_recon_algo(file_dict, obj, llk, last_recon_nb+1+n_reconstruction)
+                print('\n\nsucessfull reconstruction\n\n')
                 break
             except:
                 print('\n\nfailed reconstruction\n\n')

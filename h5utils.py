@@ -129,6 +129,7 @@ class Scan:
         """
         self.h5file = filename
         self.keys = self.sortH5Keys()
+        self.data_type = 'ID01'
 
         if scan_nb < 0:
             self.scan_string = self.keys[scan_nb]
@@ -432,7 +433,7 @@ class Scan:
             )
             return
 
-        start_time = self.getStartTime(return_seconds=False)
+        start_time, end_time = self.getStartEndTime(return_seconds=False)
 
         elapsed_time = self.getCounter("elapsed_time")
         elapsed_time = elapsed_time + start_time.timestamp()

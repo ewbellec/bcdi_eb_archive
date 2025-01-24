@@ -198,6 +198,8 @@ def add_colorbar_subplot(fig,axes,imgs,
 
 def subplots_numerous_images(img_list,
                              fw=4, ncol=4,
+                             extent=None,
+                             norm=None,
                              vmin=None,vmax=None,
                              cmap=None, colorbar=True,
                              title_list=None,
@@ -211,22 +213,27 @@ def subplots_numerous_images(img_list,
     
     for n in range(len(axe)):
         if n<len(img_list):
-            mat.append(axe[n].matshow(img_list[n], cmap=cmap, aspect='auto',vmin=vmin, vmax=vmax))
+            mat.append(axe[n].matshow(img_list[n], cmap=cmap, aspect='auto',vmin=vmin, vmax=vmax,extent=extent, norm=norm))
             if title_list is not None:
-                axe[n].set_title(title_list[n], fontsize=15)
+                axe[n].set_title(title_list[n], fontsize=15*fw/4.)
         else:
             fig.delaxes(axe[n])
             
     if suptitle is not None:
-        fig.suptitle(suptitle, fontsize=20)
+        fig.suptitle(suptitle, fontsize=20*fw/4.)
         
     if colorbar:
         add_colorbar_subplot(fig,ax[:len(img_list)],mat)
         
+    for one_axe in axe:
+        one_axe.locator_params(axis='both', nbins=5)
+        one_axe.xaxis.set_ticks_position('bottom')
+        one_axe.tick_params(axis='both', which='major', labelsize=12*fw/4.)
+
     fig.tight_layout()
            
     if return_fig_ax:
-        return fig,ax
+        return fig,axe
     else:
         return
     

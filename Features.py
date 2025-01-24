@@ -399,6 +399,7 @@ def Gif_one_image(file,
     ratio = img.size[0]/img.size[1]
     fig,ax = plt.subplots(1,figsize=(fw*ratio,fw))
     ax.imshow(img)
+    ax.axis('off')
     return
 
 def make_gif_list_images(files, name='gif_default_name', duration=10,

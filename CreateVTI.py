@@ -219,6 +219,11 @@ def save_vti(np_arrays,
              voxel_sizes, path_reconstruction,
              output_path=None,
              origin=(0, 0, 0)):
+    
+    # A safety check
+    if path_reconstruction[-1] != '/' :
+        path_reconstruction += '/'
+    
     if output_path is None:
         output_path = path_reconstruction + 'final_obj/{}.vti'.format(path_reconstruction.split('/')[-2])
         nb_arrays = len(np_arrays)

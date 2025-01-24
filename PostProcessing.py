@@ -15,6 +15,11 @@ my_cmap = MIR_Colormap()
 ###########################################################################################################################################
 
 def load_reconstructions(path_reconstruction):
+    
+    # A safety check
+    if path_reconstruction[-1] != '/' :
+        path_reconstruction += '/'
+    
     obj_list = []
     llk_list = []
     file_list = []
@@ -331,16 +336,16 @@ def remove_phase_ramp(obj,
     _, phase_full = get_cropped_module_phase(obj, crop=crop, unwrap=True, threshold_module=0.)
     phase_no_ramp = phase_full - ramp
     phase_no_ramp -= np.nanmean(phase_no_ramp) # Just remove a phase constant
-    
 
     obj_no_ramp = np.abs(obj)*np.exp(1.0j*phase_no_ramp)
-    
     if plot:
         
         if obj.ndim==2:
             fig, ax = plt.subplots(2,2, figsize=(8,8))            
-            plot_object_module_phase_2d(obj, fig=fig, ax=ax[:,0], vmin=None, vmax=None, crop=crop)
-            plot_object_module_phase_2d(obj_no_ramp, fig=fig, ax=ax[:,1], vmin=None, vmax=None, unwrap=True, crop=crop)
+            plot_object_module_phase_2d(obj, fig=fig, ax=ax[:,0], crop=crop,
+                                       threshold_module=threshold_module)
+            plot_object_module_phase_2d(obj_no_ramp, fig=fig, ax=ax[:,1], crop=crop,
+                                       threshold_module=threshold_module)
 
             ax[0,0].set_title('object', fontsize=20)
             ax[0,1].set_title('object without phase ramp', fontsize=20)
@@ -348,8 +353,10 @@ def remove_phase_ramp(obj,
             ax[1,0].set_ylabel('phase', fontsize=20)
             fig.tight_layout()
             
-            module, phase = get_cropped_module_phase(obj, crop=crop)
-            module_no_ramp, phase_no_ramp = get_cropped_module_phase(obj_no_ramp, crop=crop, unwrap=True)
+            module, phase = get_cropped_module_phase(obj, crop=crop, 
+                                                     threshold_module=threshold_module)
+            module_no_ramp, phase_no_ramp = get_cropped_module_phase(obj_no_ramp, crop=crop,
+                                                                    threshold_module=threshold_module)
             plt.figure()
             plt.matshow(phase-phase_no_ramp, cmap='hsv')
             plt.colorbar()
@@ -617,6 +624,10 @@ def save_final_object(obj_ortho, strain, d_spacing, voxel_sizes,
                       additional_dict = {},
                       obj_non_ortho=None,
                       verbose=False):
+    # A safety check
+    if path_reconstruction[-1] != '/' :
+        path_reconstruction += '/'
+    
     file_ref.allow_pickle = True
     dico = dict(file_ref)
     for key in ['obj', 'support']:
